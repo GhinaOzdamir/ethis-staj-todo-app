@@ -1,0 +1,21 @@
+*.sqlite*
+
+# Laravel
+/node_modules
+/public/hot
+/public/storage
+/storage/*.key
+/vendor
+
+# Environment
+.env
+.env.backup
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+
+
