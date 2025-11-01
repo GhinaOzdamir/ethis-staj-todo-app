@@ -26,6 +26,20 @@ interface NotificationType {
   type: 'success' | 'error';
 }
 
+// Props interfaces for components
+interface TodoFormProps {
+  todo: Todo | null;
+  onSave: (todo: Partial<Todo>) => void;
+  onCancel: () => void;
+}
+
+interface TodoCardProps {
+  todo: Todo;
+  onEdit: (todo: Todo) => void;
+  onDelete: (id: number) => void;
+  onStatusChange: (id: number, status: string) => void;
+}
+
 const TodoStatus = {
   TODO: 'todo' as const,
   IN_PROGRESS: 'in_progress' as const,
@@ -40,9 +54,13 @@ const TodoPriority = {
 
 // ✅ NEW: Real API service connecting to Laravel
 const todoService = {
-  async getTodos(filters = {}) {
+  async getTodos(filters: Filters = {
+    search: '',
+    status: [],
+    priority: [],
+    sort: ''
+  }) {
     try {
-      // Build query string
       const params = new URLSearchParams();
       
       if (filters.status && filters.status.length > 0) {
@@ -73,7 +91,7 @@ const todoService = {
     }
   },
 
-  async createTodo(todo) {
+  async createTodo(todo: Partial<Todo>) {
     try {
       const response = await fetch('/api/todos', {
         method: 'POST',
@@ -93,7 +111,7 @@ const todoService = {
     }
   },
 
-  async updateTodo(id, updates) {
+  async updateTodo(id: number, updates: Partial<Todo>) {
     try {
       const response = await fetch(`/api/todos/${id}`, {
         method: 'PATCH',
@@ -113,7 +131,7 @@ const todoService = {
     }
   },
 
-  async deleteTodo(id) {
+  async deleteTodo(id: number) {
     try {
       const response = await fetch(`/api/todos/${id}`, {
         method: 'DELETE',
@@ -129,32 +147,32 @@ const todoService = {
   }
 };
 
-const validateTodo = (todo) => {
-  const errors = {};
+const validateTodo = (todo: Partial<Todo>) => {
+  const errors: Record<string, string> = {};
   if (!todo.title || todo.title.trim().length === 0) {
     errors.title = 'Title is required';
   }
   if (todo.title && todo.title.length > 200) {
     errors.title = 'Title must be less than 200 characters';
   }
-  if (!todo.status || !Object.values(TodoStatus).includes(todo.status)) {
+  if (!todo.status || !Object.values(TodoStatus).includes(todo.status as any)) {
     errors.status = 'Valid status is required';
   }
-  if (!todo.priority || !Object.values(TodoPriority).includes(todo.priority)) {
+  if (!todo.priority || !Object.values(TodoPriority).includes(todo.priority as any)) {
     errors.priority = 'Valid priority is required';
   }
   return errors;
 };
 
-const TodoForm = ({ todo, onSave, onCancel }) => {
-  const [formData, setFormData] = useState(todo || {
+const TodoForm: React.FC<TodoFormProps> = ({ todo, onSave, onCancel }) => {
+  const [formData, setFormData] = useState<Partial<Todo>>(todo || {
     title: '',
     description: '',
     status: TodoStatus.TODO,
     priority: TodoPriority.MEDIUM,
     dueDate: ''
   });
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const handleSubmit = () => {
     const validationErrors = validateTodo(formData);
@@ -184,7 +202,7 @@ const TodoForm = ({ todo, onSave, onCancel }) => {
             </label>
             <input
               type="text"
-              value={formData.title}
+              value={formData.title || ''}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-400 ${
                 errors.title ? 'border-red-500' : 'border-gray-300'
@@ -199,7 +217,7 @@ const TodoForm = ({ todo, onSave, onCancel }) => {
               Description
             </label>
             <textarea
-              value={formData.description}
+              value={formData.description || ''}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-400"
               rows={3}
@@ -213,8 +231,8 @@ const TodoForm = ({ todo, onSave, onCancel }) => {
                 Status *
               </label>
               <select
-                value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                value={formData.status || TodoStatus.TODO}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value as Todo['status'] })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
               >
                 <option value={TodoStatus.TODO}>To Do</option>
@@ -228,8 +246,8 @@ const TodoForm = ({ todo, onSave, onCancel }) => {
                 Priority *
               </label>
               <select
-                value={formData.priority}
-                onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+                value={formData.priority || TodoPriority.MEDIUM}
+                onChange={(e) => setFormData({ ...formData, priority: e.target.value as Todo['priority'] })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
               >
                 <option value={TodoPriority.LOW}>Low</option>
@@ -245,7 +263,7 @@ const TodoForm = ({ todo, onSave, onCancel }) => {
             </label>
             <input
               type="date"
-              value={formData.dueDate}
+              value={formData.dueDate || ''}
               onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
             />
@@ -271,8 +289,8 @@ const TodoForm = ({ todo, onSave, onCancel }) => {
   );
 };
 
-const TodoCard = ({ todo, onEdit, onDelete, onStatusChange }) => {
-  const getPriorityColor = (priority) => {
+const TodoCard: React.FC<TodoCardProps> = ({ todo, onEdit, onDelete, onStatusChange }) => {
+  const getPriorityColor = (priority: string) => {
     switch (priority) {
       case TodoPriority.HIGH: return 'bg-red-100 text-red-800';
       case TodoPriority.MEDIUM: return 'bg-yellow-100 text-yellow-800';
@@ -281,7 +299,7 @@ const TodoCard = ({ todo, onEdit, onDelete, onStatusChange }) => {
     }
   };
 
-  const getStatusColor = (status) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
       case TodoStatus.DONE: return 'bg-green-100 text-green-800';
       case TodoStatus.IN_PROGRESS: return 'bg-blue-100 text-blue-800';
@@ -347,17 +365,17 @@ const TodoCard = ({ todo, onEdit, onDelete, onStatusChange }) => {
 };
 
 export default function TodoApp() {
-  const [todos, setTodos] = useState([]);
+  const [todos, setTodos] = useState<Todo[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [editingTodo, setEditingTodo] = useState(null);
-  const [filters, setFilters] = useState({
+  const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
+  const [filters, setFilters] = useState<Filters>({
     search: '',
     status: [],
     priority: [],
     sort: 'createdAt:desc'
   });
-  const [notification, setNotification] = useState(null);
+  const [notification, setNotification] = useState<NotificationType | null>(null);
 
   useEffect(() => {
     loadTodos();
@@ -375,12 +393,12 @@ export default function TodoApp() {
     }
   };
 
-  const showNotification = (message, type = 'success') => {
+  const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 3000);
   };
 
-  const handleCreate = async (todoData) => {
+  const handleCreate = async (todoData: Partial<Todo>) => {
     try {
       await todoService.createTodo(todoData);
       showNotification('Todo created successfully');
@@ -391,19 +409,21 @@ export default function TodoApp() {
     }
   };
 
-  const handleUpdate = async (todoData) => {
+  const handleUpdate = async (todoData: Partial<Todo>) => {
     try {
-      await todoService.updateTodo(editingTodo.id, todoData);
-      showNotification('Todo updated successfully');
-      setShowForm(false);
-      setEditingTodo(null);
-      loadTodos();
+      if (editingTodo) {
+        await todoService.updateTodo(editingTodo.id, todoData);
+        showNotification('Todo updated successfully');
+        setShowForm(false);
+        setEditingTodo(null);
+        loadTodos();
+      }
     } catch (error) {
       showNotification('Failed to update todo', 'error');
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id: number) => {
     if (window.confirm('Are you sure you want to delete this todo?')) {
       try {
         await todoService.deleteTodo(id);
@@ -415,9 +435,9 @@ export default function TodoApp() {
     }
   };
 
-  const handleStatusChange = async (id, newStatus) => {
+  const handleStatusChange = async (id: number, newStatus: string) => {
     try {
-      await todoService.updateTodo(id, { status: newStatus });
+      await todoService.updateTodo(id, { status: newStatus as Todo['status'] });
       showNotification('Status updated successfully');
       loadTodos();
     } catch (error) {
@@ -425,7 +445,7 @@ export default function TodoApp() {
     }
   };
 
-  const toggleFilter = (filterType, value) => {
+  const toggleFilter = (filterType: keyof Pick<Filters, 'status' | 'priority'>, value: string) => {
     setFilters(prev => {
       const currentFilter = prev[filterType];
       const newFilter = currentFilter.includes(value)
@@ -574,3 +594,4 @@ export default function TodoApp() {
     </div>
   );
 }
+
